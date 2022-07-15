@@ -57,16 +57,22 @@ def build_page() -> None:
     with col1:
         start_date = st.date_input("Date of first opportunity", datetime.date(2019, 7, 6))
         start_datetime = dt(start_date.year, start_date.month, start_date.day)
+)
+
+
+        print(type(start_date))
+        print(type(start_datetime))
+
 
     with col2:
         end_date = st.date_input("Date of last opportunity", datetime.date(2019, 7, 6))
 
     df_opps = read_data('./Assets/Opps-7-15-2022.xlsx', 33)
 
-   # df_opps = df_opps[
-   #     (df_opps.index >= start_date) &
-   #     (df_opps.index <= end_date)
-   #    ]
+    df_opps = df_opps[
+        (df_opps.index >= start_date) &
+        (df_opps.index <= end_date)
+       ]
 
     st.dataframe(df_opps.head(n=12))
 
