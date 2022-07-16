@@ -1,47 +1,6 @@
 import streamlit as st
-import pandas as pd
-import seaborn as sns
-from datetime import date as dt
-import datetime
-
-
-@st.cache()
-def read_data(excel_file, index_col) -> pd.DataFrame:
-    """
-    Opens and reads data from the specified Excel file.
-    :param excel_file: The full name of the Excel file to be processed.
-    :param index_col: The column to use as the dataframe index.
-    :return: A dataframe containing the Excel data.
-    """
-    return pd.read_excel(excel_file, index_col=index_col, sheet_name='opps')
-
-
-def build_summary(df) -> pd.DataFrame:
-    opps_won = df[df['Status'] == 'Won'].shape[0]
-    opps_lost = df[df['Status'] == 'Lost'].shape[0]
-    opps_open = df[df['Status'] == 'Open'].shape[0]
-    opps_total = df.shape[0]
-
-    opps_won_e = df[(df['Status'] == 'Won') & (df['Type'] == 'Existing Business')].shape[0]
-    opps_won_n = df[(df['Status'] == 'Won') & (df['Type'] == 'New Business')].shape[0]
-    opps_won_c = df[(df['Status'] == 'Won') & (df['Type'] == 'Continuation')].shape[0]
-
-    opps_lost_e = df[(df['Status'] == 'Lost') & (df['Type'] == 'Existing Business')].shape[0]
-    opps_lost_n = df[(df['Status'] == 'Lost') & (df['Type'] == 'New Business')].shape[0]
-    opps_lost_c = df[(df['Status'] == 'Lost') & (df['Type'] == 'Continuation')].shape[0]
-
-    opps_open_e = df[(df['Status'] == 'Open') & (df['Type'] == 'Existing Business')].shape[0]
-    opps_open_n = df[(df['Status'] == 'Open') & (df['Type'] == 'New Business')].shape[0]
-    opps_open_c = df[(df['Status'] == 'Open') & (df['Type'] == 'Continuation')].shape[0]
-
-    data = {'Opportunities measure': ['Opportunities won', 'Opportunities lost', 'Opportunities open'],
-            'Count': [opps_won, opps_lost, opps_open],
-            'New': [opps_won_n, opps_lost_n, opps_open_n],
-            'Existing': [opps_won_e, opps_lost_e, opps_open_e],
-            'Continuation': [opps_won_c, opps_lost_c, opps_open_c],
-            }
-
-    return pd.DataFrame(data)
+import altair as alt
+import Helpers.info_helper as ih
 
 
 def build_page() -> None:
@@ -49,35 +8,64 @@ def build_page() -> None:
     Defines a page in the streamlit application.
     :return: None
     """
-    st.markdown("## A few sample opportunities")
-    st.markdown('Showing 12 sample records from the opportunity database')
+
+    cfg = ih.OppConfig()  # Get configuration details from the info_helper
+    df_opps = ih.read_data(cfg.excel_file, cfg.index_column)
+    df_opps.columns = df_opps.columns.str.replace(' ', '')
+    df_opps.columns = df_opps.columns.str.replace('.', '')
+
+    st.markdown("## Opportunity data between the specified dates")
 
     col1, col2 = st.columns(2)
-
     with col1:
-        start_date = st.date_input("Date of first opportunity", datetime.date(2019, 7, 6))
-        start_datetime = dt(start_date.year, start_date.month, start_date.day)
-)
-
-
-        print(type(start_date))
-        print(type(start_datetime))
-
-
+        start_date = st.date_input("Date of first opportunity", cfg.start_time)
+        start_date = start_date.strftime('%Y-%m-%d')
     with col2:
-        end_date = st.date_input("Date of last opportunity", datetime.date(2019, 7, 6))
+        end_date = st.date_input("Date of last opportunity", cfg.end_time)
+        end_date = end_date.strftime('%Y-%m-%d')
 
-    df_opps = read_data('./Assets/Opps-7-15-2022.xlsx', 33)
-
-    df_opps = df_opps[
+    # df_opps2 = df_opps.loc[start_date:end_date]
+    df_opps2 = df_opps[
         (df_opps.index >= start_date) &
         (df_opps.index <= end_date)
        ]
 
-    st.dataframe(df_opps.head(n=12))
+    st.dataframe(df_opps2)
 
     st.markdown("## Headline statistics")
-    summary = build_summary(df_opps)
+    st.markdown('There are {} opportunities between {} and {}'.format(df_opps2.shape[0], start_date, end_date))
+    summary = ih.build_summary(df_opps2)
     st.dataframe(summary)
 
+    st.markdown('## Opportunity status')
+    st.markdown('')
+
+    line = alt.Chart(df_opps2).mark_bar().encode(
+        x='Status',
+        y='count()',
+    ).properties(width=400, height=400).interactive()
+
+    bar = alt.Chart(df_opps2).mark_bar().encode(
+            alt.X('Status'),
+            alt.Y('count()'),
+            alt.Color('Type'),
+        ).properties(width=400, height=400).interactive()
+
+    obj = alt.hconcat(line, bar)  # Vertical Concatenation
+
+    st.altair_chart(obj)
+
+    p = alt.Chart(df_opps2).mark_bar().encode(
+        alt.X('month(EstCloseDate):T'),
+        alt.Y('mean(BlendedRate(Base)):Q'),
+    ).properties(width=400, height=400).interactive()
+
+    st.altair_chart(p)
+
+   # timer = alt.Chart(df_opps2.reset_index()).mark_line().encode(
+   #     x='index:T',
+   #     y='value:Q'
+   # ).properties(width=400, height=400).interactive()
+
+ #   st.altair_chart(timer)
 
