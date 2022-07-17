@@ -1,5 +1,6 @@
 import pandas as pd
 import streamlit as st
+from datetime import datetime as dt
 import datetime
 
 
@@ -12,16 +13,35 @@ class OppConfig:
         self.start_time = datetime.date(2022, 1, 1)
         self.end_time = datetime.date(2022, 12, 31)
 
+    @staticmethod
+    def first_record(df: pd.DataFrame):
+        min_date = df.index.min()
+        return min_date
 
-@st.cache()
-def read_data(excel_file, index_col) -> pd.DataFrame:
+    @staticmethod
+    def last_record(df: pd.DataFrame):
+        max_date = df.index.max()
+        return max_date
+
+
+def read_data(excel_file, col_index, worksheet) -> pd.DataFrame:
     """
-    Opens and reads data from the specified Excel file.
-    :param excel_file: The full name of the Excel file to be processed.
-    :param index_col: The column to use as the dataframe index.
-    :return: A dataframe containing the Excel data.
+    Reads opportunity data from an Excel file
+    :param excel_file: Name of the file to read
+    :param col_index: The column to use as an index
+    :param worksheet: The name of the worksheet where data exists
+    :return:
     """
-    return pd.read_excel(excel_file, index_col=33, sheet_name='opps')
+    df_opps = pd.read_excel(excel_file, sheet_name=worksheet)
+
+    # Remove spaces and punctuation from the column names
+    df_opps.columns = df_opps.columns.str.replace(' ', '')
+    df_opps.columns = df_opps.columns.str.replace('.', '')
+    df_opps['Created'] = df_opps['CreatedOn']
+    df_opps['rec_count'] = 1
+    df_opps = df_opps.set_index(['CreatedOn'])
+    df_opps.index = df_opps.index.astype('datetime64[ns]')
+    return df_opps
 
 
 def build_summary(df) -> pd.DataFrame:
